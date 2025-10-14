@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime, timedelta
+from fpdf import FPDF
 
 print("🔍 Welcome to eCourts Case Checker")
 print("-----------------------------------")
@@ -46,6 +47,7 @@ with open(txt_file, "w", encoding="utf-8") as f:
     for k, v in sample_case_data.items():
         f.write(f"{k}: {v}\n")
 print(f"💾 TXT saved at: {txt_file}")
+
 # Step 6: Ask if user wants to download today's cause list
 cause_list_choice = input("\nDo you want to download today's cause list? (y/n): ").strip().lower()
 
@@ -70,6 +72,21 @@ if cause_list_choice == "y":
     
     print(f"\n💾 Cause list saved as JSON: {cause_json_file}")
     print(f"💾 Cause list saved as TXT: {cause_txt_file}")
+
+    # Save as PDF
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 10, "District Court Cause List", ln=True, align="C")
+    pdf.ln(10)  # Add space
+
+    for item in cause_list:
+        line = f"Serial: {item['Serial']}, CNR: {item['CNR']}, Court: {item['Court']}"
+        pdf.cell(0, 10, line, ln=True)
+
+    cause_pdf_file = os.path.join(output_dir, "cause_list_today.pdf")
+    pdf.output(cause_pdf_file)
+    print(f"💾 Cause list saved as PDF: {cause_pdf_file}")
+
 else:
     print("\nSkipped downloading cause list.")
-
