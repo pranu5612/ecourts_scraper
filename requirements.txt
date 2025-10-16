@@ -1,4 +1,4 @@
 streamlit
 fpdf
 beautifulsoup4
-pandas
+lxml
