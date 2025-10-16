@@ -1,66 +1,61 @@
+# streamlit_causelist_ui.py
+
 import streamlit as st
 from fpdf import FPDF
-from datetime import date
+from bs4 import BeautifulSoup
 import os
 
-uploaded_file = st.file_uploader("Upload HTML Cause List", type="html")
+st.set_page_config(page_title="eCourts Cause List Parser", layout="wide")
+st.title("🏛️ eCourts Cause List Parser")
 
-# --- Create outputs folder if it doesn't exist ---
-os.makedirs("outputs", exist_ok=True)
+# Function to parse HTML and generate PDF
+def parse_html_to_pdf(html_file_path):
+    # Read HTML
+    with open(html_file_path, "r", encoding="utf-8") as f:
+        soup = BeautifulSoup(f, "html.parser")
 
-# --- Streamlit Page Config ---
-st.set_page_config(page_title="eCourts Cause List Downloader", page_icon="🏛️")
+    # Example: Extract all cases (modify as per your HTML structure)
+    cases = []
+    for idx, row in enumerate(soup.find_all("tr")[1:], start=1):
+        cols = row.find_all("td")
+        if len(cols) >= 2:
+            case_name = cols[0].get_text(strip=True)
+            case_date = cols[1].get_text(strip=True)
+            cases.append(f"Case {idx}: {case_name} ({case_date})")
 
-st.title("🏛️ eCourts Cause List Downloader")
-st.write("Fetch and download cause lists directly from eCourts websites.")
+    # Generate PDF
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 10, "eCourts Cause List", ln=True, align="C")
+    pdf.ln(10)
 
-# --- User Input Section ---
-st.subheader("📋 Court Selection")
+    for case in cases:
+        pdf.multi_cell(0, 10, case)
 
-state = st.text_input("Enter State Name (e.g., Delhi, Maharashtra)")
-district = st.text_input("Enter District Name (e.g., New Delhi, Mumbai)")
-court_complex = st.text_input("Enter Court Complex Name")
-court_name = st.text_input("Enter Court Name")
+    output_dir = "outputs"
+    os.makedirs(output_dir, exist_ok=True)
+    pdf_path = os.path.join(output_dir, "cause_list_parsed.pdf")
+    pdf.output(pdf_path)
+    return pdf_path
 
-selected_date = st.date_input("Select Date", value=date.today())
+# File uploader
+uploaded_file = st.file_uploader("Upload HTML Cause List", type=["html", "htm"])
 
-# --- Action Button ---
-if st.button("Download Cause List"):
-    if not all([state, district, court_complex, court_name]):
-        st.error("⚠️ Please fill in all details before proceeding.")
-    else:
-        st.info(f"Generating PDF for **{court_name}**, {district}, {state} ({selected_date})...")
+if uploaded_file:
+    temp_path = "temp_causelist.html"
+    with open(temp_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    
+    st.info("Parsing HTML and generating PDF...")
+    pdf_file_path = parse_html_to_pdf(temp_path)
+    st.success(f"✅ PDF generated at `{pdf_file_path}`")
 
-        # --- Dummy cause list ---
-        cause_list_text = f"""
-Cause List - {selected_date}
-State: {state}
-District: {district}
-Court Complex: {court_complex}
-Court: {court_name}
-
-Case 1: State vs. Ramesh
-Case 2: Anita vs. Rohan
-Case 3: Rajesh vs. Municipal Corporation
-"""
-
-        # --- Save as PDF ---
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
-        pdf.set_font("DejaVu", size=12)
-        pdf.set_auto_page_break(auto=True, margin=15)
-
-        for line in cause_list_text.strip().split("\n"):
-            pdf.multi_cell(0, 10, txt=line)
-
-        pdf_output_path = "outputs/cause_list_ui.pdf"
-        pdf.output(pdf_output_path)
-
-        st.success("✅ PDF generated successfully!")
-        with open(pdf_output_path, "rb") as f:
-            st.download_button(
-                "📥 Download PDF",
-                data=f,
-                file_name="cause_list_ui.pdf"
-            )
+    # Download button
+    with open(pdf_file_path, "rb") as pdf_file:
+        st.download_button(
+            label="📥 Download PDF",
+            data=pdf_file,
+            file_name="cause_list_parsed.pdf",
+            mime="application/pdf"
+        )
